@@ -11,7 +11,7 @@ import re
 
 
 
-load_dotenv()  # lit le .env existant
+load_dotenv()  
 
 
 # CONNECTION & MENU
@@ -106,12 +106,12 @@ def agent_menu(user_email):
         
 def register_user():
 
-    # 1) Saisie des données communes
+    # 
     email      = input("Email                 : ").strip()
     first_name = input("First name                : ").strip()
     last_name  = input("Last name                   : ").strip()
 
-    # 2) Choix du type (casse non sensible à l'entrée)
+    # 
     user_type = None
     while user_type not in ("Agent", "Renter"):
         utmp = input("Type ('Agent' ou 'Renter'): ").strip().lower()
@@ -120,7 +120,6 @@ def register_user():
         else:
             print("→ Error.")
 
-    # 3) Connexion et début de transaction
     conn = get_connection()
     cur  = conn.cursor()
     try:
@@ -135,9 +134,7 @@ def register_user():
             (email, first_name, last_name, user_type)
         )
 
-        # 3b) INSERT spécifique selon le type
         if user_type == "Agent":
-            # Pour un agent, on enregistre son numéro, son agence et son poste :contentReference[oaicite:0]{index=0}&#8203;:contentReference[oaicite:1]{index=1}
             phone     = input("Phone number         : ").strip()
             agency    = input("Agency name          : ").strip()
             position  = input("Position/job title  : ").strip()
@@ -152,7 +149,6 @@ def register_user():
             )
 
         else:  # Renter
-            # Pour un locataire, on enregistre ses préférences de budget, date et lieu :contentReference[oaicite:2]{index=2}&#8203;:contentReference[oaicite:3]{index=3}
             age        = int(input("Age                  : ").strip())
             budget     = float(input("Budget               : ").strip())
             move_in    = input("Desired move-in date (YYYY-MM-DD): ").strip()
@@ -168,7 +164,6 @@ def register_user():
                 (email, age, budget, move_in, location, sq_ft)
             )
 
-        # 4) Commit si tout s'est bien passé
         conn.commit()
         print(f"\n✅ Congrats ! You are now on our DataBase as {email} ({user_type}) !")
 
@@ -324,7 +319,6 @@ def list_users():
     rows = cur.fetchall()
     print("\n-- Utilisateurs --")
     for email in rows:
-        # user_id et email sont extraits de la ligne (tuple)
         print(f"{email}")
     cur.close()
     conn.close()
