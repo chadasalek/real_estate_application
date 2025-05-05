@@ -840,15 +840,6 @@ def modify_address(user_email):
     cur.close()
     conn.close()
 
-
-
-
-
-
-
-
-
-
 if __name__ == "__main__":
     while True:
         print("\n=== REAL ESTATE CLI ===")
