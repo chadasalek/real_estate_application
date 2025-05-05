@@ -1,11 +1,13 @@
 # cli.py
 import os
+from idlelib.colorizer import prog_group_name_to_tag
+from sys import excepthook
+
 from dotenv import load_dotenv
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from psycopg2 import IntegrityError
 from datetime import datetime
-
 
 load_dotenv()  # lit le .env existant
 
@@ -26,13 +28,15 @@ def renter_menu(user_email):
         print("2) Add payment method")
         print("3) Search property")
         print("4) Book")
-        print("5) Logout")
+        print("5) Update Information")
+        print("6) Logout")
         c = input("Choice: ").strip()
         if c == '1': add_address(user_email)
         elif c == '2': add_credit_card(user_email)
         elif c == '3': search_properties()
         elif c == '4': book_property(user_email)
-        elif c == '5': break
+        elif c == '5': update_renter_info(user_email)
+        elif c == '6': break
         else: print("Invalid.")
         
 def agent_menu(user_email):
@@ -40,11 +44,13 @@ def agent_menu(user_email):
         print("\n--- Agent menu  ---")
         print("1) Add property")
         print("2) Search property")
-        print("3) Logout")
+        print("3) Update Information")
+        print("4) Logout")
         c = input("Choice: ").strip()
         if c == '1': add_property(user_email)
         elif c == '2': search_properties()
-        elif c == '3': break
+        elif c == '3': update_agent_info(user_email)
+        elif c == '4': break
         else: print("Invalid.")
         
 def register_user():
@@ -384,23 +390,488 @@ def view_payment_methods(email):
     return cards
 
 
+def update_renter_info(user_email):
+        """Allow a renter to update their information"""
+        conn = get_connection()
+        cur = conn.cursor()
+
+        while True:
+            try:
+                print("\nWhich information would you like to update?")
+                print("1) First Name")
+                print("2) Last Name")
+                print("3) User Type")
+                print("4) Budget")
+                print("5) Move-in Date")
+                print("6) Preferred Location")
+                print("7) Preferred Square Feet")
+                print("8) Credit Card")
+                print("9) Address")
+                print("10) Exit")
+
+                choice = input("Choice: ").strip()
+
+                if choice == '1':
+                    new_first_name = input("Enter new first name: ").strip()
+                    cur.execute(
+                        "UPDATE Users SET first_name = %s WHERE user_email = %s;",
+                        (new_first_name, user_email)
+                    )
+                    conn.commit()
+                    print("Information updated successfully!")
+                elif choice == '2':
+                    new_last_name = input("Enter new last name: ").strip()
+                    cur.execute(
+                        "UPDATE Users SET last_name = %s WHERE user_email = %s;",
+                        (new_last_name, user_email)
+                    )
+                    conn.commit()
+                    print("Information updated successfully!")
+
+                elif choice == '3':
+                    new_type = input("Enter 'renter' or 'agent' here: ").strip()
+                    cur.execute(
+                        "UPDATE Users SET user_type = %s WHERE user_email = %s;",
+                        (new_type, user_email)
+                    )
+                    conn.commit()
+                    print("Information updated successfully!")
+
+                elif choice == '4':
+                    new_budget = input("Enter new budget: ").strip()
+                    if not new_budget.isdigit():
+                        print("Invalid budget. Please input a number.")
+                    else:
+                        budget_value = int(new_budget)
+                        cur.execute(
+                            "UPDATE prospective_renters SET budget = %s WHERE user_email = %s;",
+                            (budget_value, user_email)
+                        )
+                        conn.commit()
+                        print("Information updated successfully!")
+
+                elif choice == '5':
+                    new_movein_date = input("Enter new movein date: ").strip()
+                    try:
+                        datetime.strptime(new_movein_date, "%Y-%m-%d")
+                        cur.execute(
+                        "UPDATE prospective_renters SET move_in_date = %s WHERE user_email = %s;",
+                        (new_movein_date, user_email)
+                        )
+                        conn.commit()
+                        print("Information updated successfully!")
+                    except ValueError:
+                        print("Invalid movein date. Please enter in YYYY-MM-DD format.")
+
+                elif choice == '6':
+                    new_preferred_location = input("Enter new preferred location: ").strip()
+                    cur.execute(
+                        "UPDATE prospective_renters SET preferred_location = %s WHERE user_email = %s;",
+                        (new_preferred_location, user_email)
+                    )
+                    conn.commit()
+                    print("Information updated successfully!")
+
+                elif choice == '7':
+                    new_preferred_sqft = input("Enter new preferred square footage: ").strip()
+                    if not new_preferred_sqft.isdigit():
+                        print("Invalid square footage. Please enter a numeric value.")
+                    else:
+                        cur.execute(
+                            "UPDATE prospective_renters SET preferred_sqft = %s WHERE user_email = %s;",
+                            (new_preferred_sqft, user_email)
+                    )
+                        conn.commit()
+                        print("Information updated successfully!")
+
+                elif choice == '8':
+                    update_cc_information(user_email)
+
+                elif choice == '9':
+                    modify_address(user_email)
+
+                elif choice == '10':
+                    break
+
+                else:
+                    print("Invalid choice.")
+
+            except Exception as e:
+                conn.rollback()
+                print("Error updating information:", e)
+
+        cur.close()
+        conn.close()
+
+def update_agent_info(user_email):
+    """Allow an agent to update their information"""
+    conn = get_connection()
+    cur = conn.cursor()
+
+    while True:
+        try:
+            print("\nWhich information would you like to update?")
+            print("1) First Name")
+            print("2) Last Name")
+            print("3) Phone Number")
+            print("4) Agency")
+            print("5) Position")
+            print("6) Exit")
+
+            choice = input("Choice: ").strip()
+
+            if choice == '1':
+                new_first_name = input("Enter new first name: ").strip()
+                cur.execute(
+                    "UPDATE Users SET first_name = %s WHERE user_email = %s;",
+                    (new_first_name, user_email)
+                )
+                conn.commit()
+                print("Information updated successfully!")
+
+            elif choice == '2':
+                new_last_name = input("Enter new last name: ").strip()
+                cur.execute(
+                    "UPDATE Users SET last_name = %s WHERE user_email = %s;",
+                    (new_last_name, user_email)
+                )
+                conn.commit()
+                print("Information updated successfully!")
+
+
+            elif choice == '3':
+                new_phone_num = input("Enter new phone number: ").strip()
+                cur.execute("SELECT COUNT(*) FROM Agents WHERE phone_number = %s;",
+                            (new_phone_num,))
+                if cur.fetchone()[0] > 0:
+                    print("This phone number is already in use.")
+                else:
+                    cur.execute(
+                        "UPDATE Agents SET phone_number = %s WHERE user_email = %s;",
+                        (new_phone_num, user_email)
+                    )
+                    conn.commit()
+                    print("Information updated successfully!")
+
+            elif choice == '4':
+                new_agency = input("Enter new agency: ").strip()
+                cur.execute("UPDATE Agents SET agency = %s WHERE user_email = %s;",
+                            (new_agency, user_email)
+                            )
+                conn.commit()
+                print("Information updated successfully!")
+
+            elif choice == '5':
+                new_position = input("Enter new position: ").strip()
+                cur.execute("UPDATE Agents SET position = %s WHERE user_email = %s;",
+                            (new_position, user_email))
+                conn.commit()
+                print("Information updated successfully!")
+
+            elif choice == '6':
+                break
+
+            else:
+                print("Invalid choice.")
+
+
+
+        except Exception as e:
+            conn.rollback()
+            print("Error updating information:", e)
+
+    cur.close()
+    conn.close()
+
+def update_cc_information(user_email):
+    """Allow a user to update their credit card information"""
+    conn = get_connection()
+    cur = conn.cursor()
+
+    while True:
+        print("\nWhich information would you like to update?")
+        print("1) Add a new payment method")
+        print("2) Modify an existing payment method")
+        print("3) Delete a payment method")
+        print("4) List all payment methods")
+        print("5) Exit")
+
+        choice = input("Choice: ").strip()
+
+        if choice == '1':
+            while True:
+                card_num = input("Enter new card number (13-16 digits): ").strip()
+                if card_num.isdigit() and 13 <= len(card_num) <= 16:
+                    break
+                else:
+                    print("Invalid card number.")
+
+            exp_date = input("Enter exp date (YYYY/MM/DD): ").strip()
+            cur.execute(
+                "INSERT INTO credit_card (credit_card_num, exp_date, user_email) VALUES (%s, %s, %s);",
+                (card_num, exp_date, user_email)
+            )
+            conn.commit()
+            print("Payment method added successfully!")
+
+
+        elif choice == '2':
+            while True:
+                card_num = input("Enter existing card number (13-16 digits): ").strip()
+                if card_num.isdigit() and 13 <= len(card_num) <= 16:
+                    cur.execute(
+                        "SELECT * FROM credit_card WHERE credit_card_num = %s AND user_email = %s;",
+                        (card_num, user_email)
+                    )
+                    if cur.fetchone():
+                        break
+                    else:
+                        print("Credit card not found.")
+                else:
+                    print("Invalid card number.")
+
+            exp_date = input("Enter exp date (YYYY/MM/DD): ").strip()
+
+            try:
+                cur.execute(
+                        "UPDATE credit_card SET exp_date = %s WHERE user_email = %s;",
+                        (exp_date, user_email)
+                )
+                conn.commit()
+                print("Payment method modified successfully!")
+            except Exception as e:
+                conn.rollback()
+                print("Error updating information:", e)
+
+
+        elif choice == '3':
+            cur.execute(
+                "SELECT credit_card_num, exp_date FROM credit_card WHERE user_email = %s;",
+                (user_email,)
+            )
+
+            cards = cur.fetchall()
+
+            if not cards:
+                print("No credit cards found.")
+                return
+
+            print("Select a credit card to delete:")
+
+            for i, card in enumerate(cards, start=1):
+                print(f"{i}) Number: {card[0]}, Exp: {card[1]}, Name: {card[2]}, Type: {card[3]}")
+
+            try:
+
+                selection = int(input("Enter number of card to delete: ").strip())
+                if selection < 1 or selection > len(cards):
+                    print("Invalid selection.")
+                    return
+
+                selected_card_num = cards[selection - 1][0]
+                cur.execute(
+
+                    "DELETE FROM credit_card WHERE credit_card_num = %s AND user_email = %s;",
+                    (selected_card_num, user_email)
+                )
+                conn.commit()
+                print("Credit card deleted successfully.")
+            except ValueError:
+                print("Invalid input. Please enter a number.")
+
+
+
+        elif choice == '4':
+            cur.execute("SELECT credit_card_num, exp_date FROM credit_card WHERE user_email = %s;",
+                        (user_email,))
+            cards = cur.fetchall()
+
+            if not cards:
+                print("No credit card found.")
+            else:
+                print("\nSaved Credit Cards:")
+                for id, (card_num, exp_date) in enumerate(cards, start=1):
+                    masked = '*' * (len(card_num) - 4) + card_num[-4:]
+                    print(f"{id}) Card ending in {masked}, Exp: {exp_date}")
+
+        elif choice == '5':
+            break
+
+def modify_address(user_email):
+    conn = get_connection()
+    cur = conn.cursor()
+
+    while True:
+        print("\nWhat would you like to do?")
+        print("1) Add new address")
+        print("2) Modify an existing address")
+        print("3) Delete an existing address")
+        print("4) List all addresses")
+        print("5) Exit")
+
+        choice = input("Choice: ").strip()
+        #street, city, state, country, zip_code, address_type
+        if choice == '1':
+            street = input("Enter street address: ").strip()
+            city = input("Enter city: ").strip()
+            state = input("Enter state: ").strip()
+            zipcode = input("Enter zipcode: ").strip()
+            country = input("Enter country: ").strip()
+            address_type = input("Enter address type (Business, Residential, Vacation, Land, Commercial): ").strip()
+
+            cur.execute(
+                "INSERT INTO Address (street, city, state, country, zip_code, address_type) "
+                "VALUES (%s, %s, %s, %s, %s, %s) RETURNING address_id;",
+                (street, city, state, country, zipcode, address_type)
+            )
+            addr_id = cur.fetchone()[0]
+            cur.execute(
+                "UPDATE prospective_renters SET address_id = %s WHERE user_email = %s;",
+                (addr_id, user_email)
+            )
+
+            conn.commit()
+            print("Address added successfully!")
+
+        elif choice == '2':
+            cur.execute(
+                "SELECT address_id, street, city, state, zip_code, address_type FROM Address WHERE "
+                "address_id IN (SELECT address_id FROM prospective_renters WHERE user_email = %s);",
+                (user_email,)
+            )
+            addresses = cur.fetchall()
+
+            if not addresses:
+                print("No address found.")
+                return
+
+            print("Select an address to modify: ")
+            for i in range(len(addresses)):
+                addr = addresses[i]
+                print(f"{i+1}, {addr[1]}, {addr[2]}, {addr[3]}, {addr[4]}, (Type: {addr[5]})")
+
+            try:
+                addr_choice = int(input("Select an address to modify: ").strip())
+                if addr_choice < 1 or addr_choice > len(addresses):
+                    print("Invalid choice.")
+                    continue
+
+                selected_address = addresses[addr_choice - 1]
+                addr_id = selected_address[0]
+
+                street = input("Enter street address: ").strip()
+                city = input("Enter city: ").strip()
+                state = input("Enter state: ").strip()
+                zipcode = input("Enter zipcode: ").strip()
+                country = input("Enter country: ").strip()
+                address_type = input("Enter address type (Business, Residential, Vacation, Land, Commercial): ").strip()
+
+                cur.execute(
+                    "UPDATE address SET street = %s, city = %s, state = %s, country = %s, zip_code = %s, address_type = %s "
+                    "WHERE address_id = %s; ",
+                    (street, city, state, country, zipcode, address_type, addr_id)
+                )
+                conn.commit()
+                print("Address modified successfully!")
+
+            except ValueError:
+                print("Invalid choice.")
+
+        elif choice == '3':
+            cur.execute(
+                "SELECT address_id, street, city, state, zip_code, address_type FROM Address WHERE address_id IN "
+                "(SELECT address_id FROM prospective_renters WHERE user_email = %s);",
+                (user_email,)
+            )
+            addresses = cur.fetchall()
+
+            if not addresses:
+                print("No address found.")
+                return
+
+            print("Select an address to delete:")
+            for i in range(len(addresses)):
+                addr = addresses[i]
+                print(f"{i+1}, {addr[1]}, {addr[2]}, {addr[3]}, {addr[4]}, (Type: {addr[5]})")
+
+            try:
+                addr_choice = int(input("Enter the number of the address you'd like to delete: ").strip())
+                if addr_choice < 1 or addr_choice > len(addresses):
+                    print("Invalid choice.")
+                    return
+
+                selected_add = addresses[addr_choice - 1]
+                addr_id = selected_add[0]
+
+                cur.execute(
+                    "DELETE FROM Address WHERE address_id = %s;",
+                    (addr_id,)
+                )
+                cur.execute(
+                    "UPDATE prospective_renters SET address_id = NULL WHERE user_email = %s;",
+                    (user_email,)
+                )
+                conn.commit()
+                print("Address deleted successfully!")
+
+            except ValueError:
+                print("Invalid selection. Please choose one of the numbers listed.")
+
+        elif choice == '4':
+            cur.execute("SELECT a.street, a.city, a.state, a.zip_code FROM address a JOIN prospective_renters r "
+                        "ON r.address_id = a.address_id WHERE r.user_email = %s;",
+                        (user_email,))
+
+            user_addresses = cur.fetchall()
+
+            if not user_addresses:
+                print("No address found.")
+            else:
+                print("\nSaved Addresses:")
+                for id, address in enumerate(user_addresses, start=1):
+                    street, city, state, zip_code = address
+                    print(f"{id}) Street: {street}, City: {city}, State: {state}, Zip: {zip_code}")
+        elif choice == '5':
+            break
+
+        else:
+            print("Invalid choice.")
+
+    cur.close()
+    conn.close()
+
+
+
+
+
+
+
+
+
+
 if __name__ == "__main__":
     while True:
         print("\n=== REAL ESTATE CLI ===")
         print("1) Login")
         print("2) Register")
-        print("3) Quit")
+        print("3) Exit")
         choice = input("Choice: ").strip()
         if choice == '1':
             email, utype = login_user()
             if email:
                 ut = utype.strip().casefold()
-                if ut == 'agent': agent_menu(email)
-                else : renter_menu(email)
+                if ut == 'agent':
+                    agent_menu(email)
+                else:
+                    renter_menu(email)
         elif choice == '2':
             register_user()
+
         elif choice == '3':
             print("Bye!")
             break
         else:
             print("Invalid.")
+
+
+
